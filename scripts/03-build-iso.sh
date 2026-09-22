@@ -43,11 +43,13 @@ echo "Установка конфигурации GRUB..."
 cp "${WORKDIR}/config/live/grub.cfg" "${ISO_DIR}/boot/grub/grub.cfg"
 cp "${WORKDIR}/config/live/grub.cfg" "${ISO_DIR}/EFI/BOOT/grub.cfg"
 
-# Копирование всех x86_64-efi модулей GRUB на ISO образ (включая linux.mod)
+# Копирование всех x86_64-efi модулей GRUB на ISO образ (за исключением shim_lock)
 if [ -d /usr/lib/grub/x86_64-efi ]; then
     echo "Копирование модулей GRUB x86_64-efi на ISO..."
     cp -r /usr/lib/grub/x86_64-efi/*.mod "${ISO_DIR}/boot/grub/x86_64-efi/" || true
     cp -r /usr/lib/grub/x86_64-efi/*.lst "${ISO_DIR}/boot/grub/x86_64-efi/" || true
+    # КРИТИЧЕСКИ ВАЖНО: Удаляем shim_lock.mod с диска, чтобы GRUB не блокировал загрузку ядра без shim
+    rm -f "${ISO_DIR}/boot/grub/x86_64-efi/shim_lock.mod"
 fi
 
 # Копирование шрифта unicode.pf2
@@ -58,10 +60,9 @@ for font_path in /usr/share/grub/unicode.pf2 /boot/grub/unicode.pf2 "${CHROOT_DI
     fi
 done
 
-# 4. Создание встроенного скрипта GRUB с надежным поиском диска и аварийным меню
-echo "Генерация автономного EFI загрузчика GRUB с поиском диска..."
+# 4. Создание автономного загрузчика grubx64.efi БЕЗ модуля shim_lock
+echo "Генерация автономного EFI загрузчика GRUB (без shim_lock)..."
 cat <<'EOF' > /tmp/embedded_grub.cfg
-# Предварительная загрузка ключевых модулей из memdisk до изменения prefix
 insmod linux
 insmod normal
 insmod configfile
@@ -108,14 +109,49 @@ menuentry "Установка WinUbuntu (Безопасный видеорежи
 }
 EOF
 
+# Подготовка каталога модулей без shim_lock.mod для сборки grubx64.efi
+TMP_GRUB_MODS="/tmp/grub-x86_64-efi"
+rm -rf "${TMP_GRUB_MODS}"
+mkdir -p "${TMP_GRUB_MODS}"
+if [ -d /usr/lib/grub/x86_64-efi ]; then
+    cp -r /usr/lib/grub/x86_64-efi/* "${TMP_GRUB_MODS}/"
+    rm -f "${TMP_GRUB_MODS}/shim_lock.mod"
+fi
+
 grub-mkstandalone \
+    -d "${TMP_GRUB_MODS}" \
     --format=x86_64-efi \
-    --output="${ISO_DIR}/EFI/BOOT/BOOTX64.EFI" \
+    --output="${ISO_DIR}/EFI/BOOT/grubx64.efi" \
     --locales="" \
     --fonts="" \
     "boot/grub/grub.cfg=/tmp/embedded_grub.cfg"
 
-# Создание образа FAT для EFI загрузки (ESP раздел efi.img)
+# 5. Настройка Shim (BOOTX64.EFI) для Secure Boot и Ventoy
+SHIM_SRC=""
+for s in /usr/lib/shim/shimx64.efi.signed.latest /usr/lib/shim/shimx64.efi.signed "${CHROOT_DIR}/usr/lib/shim/shimx64.efi.signed.latest" "${CHROOT_DIR}/usr/lib/shim/shimx64.efi.signed"; do
+    if [ -f "$s" ]; then
+        SHIM_SRC="$s"
+        break
+    fi
+done
+
+if [ -n "$SHIM_SRC" ]; then
+    echo "Использование официального Microsoft-signed Shim: $SHIM_SRC"
+    cp "$SHIM_SRC" "${ISO_DIR}/EFI/BOOT/BOOTX64.EFI"
+else
+    echo "Shim не найден, использование grubx64.efi в качестве BOOTX64.EFI"
+    cp "${ISO_DIR}/EFI/BOOT/grubx64.efi" "${ISO_DIR}/EFI/BOOT/BOOTX64.EFI"
+fi
+
+# Копирование mmx64.efi (MokManager), если есть
+for mm in /usr/lib/shim/mmx64.efi "${CHROOT_DIR}/usr/lib/shim/mmx64.efi"; do
+    if [ -f "$mm" ]; then
+        cp "$mm" "${ISO_DIR}/EFI/BOOT/mmx64.efi"
+        break
+    fi
+done
+
+# 6. Создание образа FAT для EFI загрузки (ESP раздел efi.img)
 echo "Создание FAT раздела EFI (efi.img)..."
 EFI_IMG="${ISO_DIR}/boot/grub/efi.img"
 rm -f "${EFI_IMG}"
@@ -126,6 +162,10 @@ mmd -i "${EFI_IMG}" ::/EFI/BOOT
 mmd -i "${EFI_IMG}" ::/boot
 mmd -i "${EFI_IMG}" ::/boot/grub
 mcopy -i "${EFI_IMG}" "${ISO_DIR}/EFI/BOOT/BOOTX64.EFI" ::/EFI/BOOT/BOOTX64.EFI
+mcopy -i "${EFI_IMG}" "${ISO_DIR}/EFI/BOOT/grubx64.efi" ::/EFI/BOOT/grubx64.efi
+if [ -f "${ISO_DIR}/EFI/BOOT/mmx64.efi" ]; then
+    mcopy -i "${EFI_IMG}" "${ISO_DIR}/EFI/BOOT/mmx64.efi" ::/EFI/BOOT/mmx64.efi
+fi
 mcopy -i "${EFI_IMG}" "${WORKDIR}/config/live/grub.cfg" ::/EFI/BOOT/grub.cfg
 mcopy -i "${EFI_IMG}" "${WORKDIR}/config/live/grub.cfg" ::/boot/grub/grub.cfg
 

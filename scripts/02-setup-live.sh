@@ -85,6 +85,7 @@ apt-get install -y --no-install-recommends \
     grub-pc-bin \
     grub-efi-amd64-bin \
     grub-efi-amd64-signed \
+    shim-signed \
     upower
 
 # Создание Live-пользователя 'live'
