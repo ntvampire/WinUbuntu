@@ -1,0 +1,9 @@
+# Enforce LF for all shell scripts and linux config files
+*.sh text eol=lf
+*.conf text eol=lf
+*.xml text eol=lf
+*.list text eol=lf
+*.desktop text eol=lf
+*.rc text eol=lf
+*.cfg text eol=lf
+*.yml text eol=lf
