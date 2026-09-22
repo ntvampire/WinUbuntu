@@ -24,6 +24,7 @@ apt-get install -y --no-install-recommends \
     xorriso \
     grub-pc-bin \
     grub-efi-amd64-bin \
+    grub-efi-amd64-signed \
     shim-signed \
     mtools \
     dosfstools \

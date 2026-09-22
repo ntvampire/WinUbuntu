@@ -60,73 +60,51 @@ for font_path in /usr/share/grub/unicode.pf2 /boot/grub/unicode.pf2 "${CHROOT_DI
     fi
 done
 
-# 4. Создание автономного загрузчика grubx64.efi БЕЗ модуля shim_lock
-echo "Генерация автономного EFI загрузчика GRUB (без shim_lock)..."
-cat <<'EOF' > /tmp/embedded_grub.cfg
+# 4. Настройка официального подписанного Canonical GRUB (для совместимости с Shim и Secure Boot)
+GRUB_SIGNED_SRC=""
+for g in /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed "${CHROOT_DIR}/usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed"; do
+    if [ -f "$g" ]; then
+        GRUB_SIGNED_SRC="$g"
+        break
+    fi
+done
+
+if [ -n "$GRUB_SIGNED_SRC" ]; then
+    echo "Использование официального подписанного Canonical GRUB: $GRUB_SIGNED_SRC"
+    cp "$GRUB_SIGNED_SRC" "${ISO_DIR}/EFI/BOOT/grubx64.efi"
+else
+    echo "Подписанный GRUB не найден, сборка автономного grubx64.efi..."
+    cat <<'EOF' > /tmp/embedded_grub.cfg
 insmod linux
 insmod normal
 insmod configfile
-insmod test
-insmod search
-insmod search_fs_file
-insmod search_label
-insmod iso9660
-insmod all_video
-insmod efi_gop
-insmod efi_uga
-
-# Поиск корневого раздела с ядром /casper/vmlinuz
-if [ -z "$root" -o ! -f "($root)/casper/vmlinuz" ]; then
-    search --no-floppy --file --set=root /casper/vmlinuz
-fi
-if [ -z "$root" ]; then
-    search --no-floppy --set=root -l WINUBUNTU
-fi
-
+search --no-floppy --file --set=root /casper/vmlinuz
 set prefix=($root)/boot/grub
-
-# Загрузка основного конфигурационного файла
 if [ -f "$prefix/grub.cfg" ]; then
     source "$prefix/grub.cfg"
 elif [ -f "($root)/EFI/BOOT/grub.cfg" ]; then
     source "($root)/EFI/BOOT/grub.cfg"
 fi
-
-# Резервное встроенное меню на случай проблем с чтением внешнего конфига
-set default="0"
-set timeout=5
-
-menuentry "Установка WinUbuntu 24.04 LTS" {
-    set gfxpayload=keep
-    linux /casper/vmlinuz boot=casper iso-scan/filename=${iso_path} quiet splash fsck.mode=skip ---
-    initrd /casper/initrd
-}
-
-menuentry "Установка WinUbuntu (Безопасный видеорежим)" {
-    set gfxpayload=keep
-    linux /casper/vmlinuz boot=casper iso-scan/filename=${iso_path} nomodeset quiet splash fsck.mode=skip ---
-    initrd /casper/initrd
-}
 EOF
 
-# Подготовка каталога модулей без shim_lock.mod для сборки grubx64.efi
-TMP_GRUB_MODS="/tmp/grub-x86_64-efi"
-rm -rf "${TMP_GRUB_MODS}"
-mkdir -p "${TMP_GRUB_MODS}"
-if [ -d /usr/lib/grub/x86_64-efi ]; then
-    cp -r /usr/lib/grub/x86_64-efi/* "${TMP_GRUB_MODS}/"
-    rm -f "${TMP_GRUB_MODS}/shim_lock.mod"
+    TMP_GRUB_MODS="/tmp/grub-x86_64-efi"
+    rm -rf "${TMP_GRUB_MODS}"
+    mkdir -p "${TMP_GRUB_MODS}"
+    if [ -d /usr/lib/grub/x86_64-efi ]; then
+        cp -r /usr/lib/grub/x86_64-efi/* "${TMP_GRUB_MODS}/"
+        rm -f "${TMP_GRUB_MODS}/shim_lock.mod"
+    fi
+
+    grub-mkstandalone \
+        -d "${TMP_GRUB_MODS}" \
+        --format=x86_64-efi \
+        --output="${ISO_DIR}/EFI/BOOT/grubx64.efi" \
+        --locales="" \
+        --fonts="" \
+        "boot/grub/grub.cfg=/tmp/embedded_grub.cfg"
 fi
 
-grub-mkstandalone \
-    -d "${TMP_GRUB_MODS}" \
-    --format=x86_64-efi \
-    --output="${ISO_DIR}/EFI/BOOT/grubx64.efi" \
-    --locales="" \
-    --fonts="" \
-    "boot/grub/grub.cfg=/tmp/embedded_grub.cfg"
-
-# 5. Настройка Shim (BOOTX64.EFI) для Secure Boot и Ventoy
+# 5. Настройка официального подписанного Shim (BOOTX64.EFI)
 SHIM_SRC=""
 for s in /usr/lib/shim/shimx64.efi.signed.latest /usr/lib/shim/shimx64.efi.signed "${CHROOT_DIR}/usr/lib/shim/shimx64.efi.signed.latest" "${CHROOT_DIR}/usr/lib/shim/shimx64.efi.signed"; do
     if [ -f "$s" ]; then
@@ -139,7 +117,7 @@ if [ -n "$SHIM_SRC" ]; then
     echo "Использование официального Microsoft-signed Shim: $SHIM_SRC"
     cp "$SHIM_SRC" "${ISO_DIR}/EFI/BOOT/BOOTX64.EFI"
 else
-    echo "Shim не найден, использование grubx64.efi в качестве BOOTX64.EFI"
+    echo "Shim не найден, дублирование grubx64.efi в BOOTX64.EFI"
     cp "${ISO_DIR}/EFI/BOOT/grubx64.efi" "${ISO_DIR}/EFI/BOOT/BOOTX64.EFI"
 fi
 
