@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Super Key to Start Menu
+Comment=Maps single Super key press to open Whisker Menu like in Windows
+Exec=xcape -e 'Super_L=Control_L|Escape'
+Terminal=false
+Hidden=false
+NoDisplay=true

@@ -1,0 +1,16 @@
+# Output ISOs
+output/
+*.iso
+*.iso.sha256
+
+# Build directories
+work/
+chroot/
+iso/
+*.squashfs
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

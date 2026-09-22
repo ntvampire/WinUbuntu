@@ -1,0 +1,28 @@
+---
+componentName:  winubuntu
+welcomeStyleCalamares:   false
+welcomeExpandingLogo:   true
+windowExpanding:    normal
+windowSize: 800px,520px
+windowPlacement: center
+
+strings:
+    productName:         "WinUbuntu"
+    shortProductName:    "WinUbuntu"
+    version:             "24.04 LTS"
+    shortVersion:        "24.04"
+    versionedName:       "WinUbuntu 24.04 LTS"
+    shortVersionedName:  "WinUbuntu 24.04"
+    bootloaderEntryName: "WinUbuntu"
+    productUrl:          "https://github.com/ntvampire/WinUbuntu"
+    supportUrl:          "https://github.com/ntvampire/WinUbuntu/issues"
+    knownIssuesUrl:      "https://github.com/ntvampire/WinUbuntu/issues"
+    releaseNotesUrl:     "https://github.com/ntvampire/WinUbuntu"
+
+images:
+    productLogo:         "/usr/share/pixmaps/winubuntu-logo.png"
+    productIcon:         "/usr/share/pixmaps/winubuntu-logo.png"
+
+style:
+   Sidebar: "widget"
+   Navigation: "widget"

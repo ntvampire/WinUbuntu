@@ -1,0 +1,76 @@
+name: Build WinUbuntu ISO
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Создать GitHub Release с готовым ISO?'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build-iso:
+    name: Build Minimal Live ISO
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space on runner
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+
+      - name: Run ISO Build
+        run: |
+          sudo chmod +x build.sh scripts/*.sh
+          sudo ./build.sh
+
+      - name: Upload ISO as GitHub Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winubuntu-24.04-minimal-iso
+          path: |
+            output/*.iso
+            output/*.sha256
+          retention-days: 14
+
+      - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.create_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v24.04-${{ github.run_number }}
+          name: WinUbuntu 24.04 LTS Minimal (${{ github.run_number }})
+          draft: false
+          prerelease: false
+          files: |
+            output/*.iso
+            output/*.sha256
+          body: |
+            ## WinUbuntu 24.04 LTS (Minimal Netinstall)
+            
+            Минимальный легковесный ISO-образ Ubuntu 24.04 LTS в стиле Windows 10/11 для слабых ПК и ноутбуков (Celeron J1800 / 4GB RAM).
+            
+            ### Особенности:
+            - **База**: Ubuntu 24.04 LTS Noble Numbat
+            - **Рабочий стол**: Кастомизированный XFCE 4.18 (интерфейс Windows 10/11)
+            - **Установщик**: Calamares с поддержкой авторазметки и сетевой установки
+            - **Приложения по умолчанию**:
+              - Яндекс.Браузер (официальный репозиторий)
+              - Celluloid (видеоплеер с аппаратным ускорением Intel VA-API)
+              - Audacious (аудиоплеер)
+              - Eye of GNOME (просмотр фото)
+              - File-Roller (архиватор zip, rar, 7z)
+              - Atril (просмотрщик PDF)
+            - **Оптимизация**: zram-swap zstd (предотвращает зависания при нехватке ОЗУ)
+            - **Совместимость**: Ventoy, UEFI (x86_64), Legacy BIOS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
