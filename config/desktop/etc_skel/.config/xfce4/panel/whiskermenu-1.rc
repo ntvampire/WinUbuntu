@@ -1,4 +1,4 @@
-favorites=yandex-browser.desktop,thunar.desktop,io.github.celluloid_player.Celluloid.desktop,audacious.desktop,org.gnome.FileRoller.desktop,eog.desktop,xfce4-settings-manager.desktop
+favorites=yandex-browser.desktop,org.gnome.Software.desktop,thunar.desktop,io.github.celluloid_player.Celluloid.desktop,audacious.desktop,org.gnome.FileRoller.desktop,eog.desktop,xfce4-settings-manager.desktop
 button-title=Пуск
 button-icon=distributor-logo-ubuntu
 show-button-title=false

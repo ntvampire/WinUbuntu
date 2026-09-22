@@ -62,7 +62,10 @@ apt-get install -y --no-install-recommends \
     greybird-gtk-theme \
     papirus-icon-theme \
     fonts-noto-core \
-    fonts-dejavu-core
+    fonts-dejavu-core \
+    gnome-software \
+    gnome-software-plugin-pk-packagekit \
+    preload
 
 # 5. Установка приложений по списку пользователя
 echo "[5/7] Установка набора приложений (Яндекс, Celluloid, Audacious, eog, file-roller, atril)..."
@@ -104,6 +107,7 @@ PRIORITY=100
 EOF
 fi
 systemctl enable zramswap || true
+systemctl enable preload || true
 
 # 7. Применение конфигурации Windows-стиля для пользователей
 echo "[7/7] Применение профилей рабочего стола и очистка установщика..."

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Магазин приложений
+Comment=Поиск и установка новых программ
+Exec=gnome-software
+Icon=org.gnome.Software
+Terminal=false
+StartupNotify=true
+Categories=System;PackageManager;
