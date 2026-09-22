@@ -124,7 +124,7 @@ jobs:
           1. Скопируйте файл \`.iso\` на флешку с **Ventoy** или запишите через **Rufus** (режим UEFI или BIOS).
           2. Загрузитесь с флешки — откроется графический установщик **Calamares**.
           3. Подключитесь к сети (Wi-Fi или кабель) и следуйте шагам мастера на экране.
-          EOF
+EOF
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release)

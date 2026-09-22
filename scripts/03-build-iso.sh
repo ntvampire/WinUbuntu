@@ -4,6 +4,7 @@ set -euo pipefail
 WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHROOT_DIR="${WORKDIR}/work/chroot"
 ISO_DIR="${WORKDIR}/work/iso"
+OUTPUT_DIR="${WORKDIR}/output"
 BUILD_DATE=$(date +'%Y%m%d')
 ISO_NAME="winubuntu-24.04-minimal-${BUILD_DATE}-amd64.iso"
 
@@ -34,7 +35,7 @@ mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/casper/filesystem.squashfs" \
     -e "boot/initrd.img*"
 
 # Запись размера файловой системы для инсталлятора
-printf $(du -sx --block-size=1 "${CHROOT_DIR}" | cut -f1) > "${ISO_DIR}/casper/filesystem.size"
+du -sx --block-size=1 "${CHROOT_DIR}" | cut -f1 > "${ISO_DIR}/casper/filesystem.size"
 
 # 3. Настройка GRUB меню
 echo "Установка конфигурации GRUB..."
