@@ -43,9 +43,37 @@ echo "Установка конфигурации GRUB..."
 cp "${WORKDIR}/config/live/grub.cfg" "${ISO_DIR}/boot/grub/grub.cfg"
 cp "${WORKDIR}/config/live/grub.cfg" "${ISO_DIR}/EFI/BOOT/grub.cfg"
 
+# Копирование всех x86_64-efi модулей GRUB на ISO образ (включая linux.mod)
+if [ -d /usr/lib/grub/x86_64-efi ]; then
+    echo "Копирование модулей GRUB x86_64-efi на ISO..."
+    cp -r /usr/lib/grub/x86_64-efi/*.mod "${ISO_DIR}/boot/grub/x86_64-efi/" || true
+    cp -r /usr/lib/grub/x86_64-efi/*.lst "${ISO_DIR}/boot/grub/x86_64-efi/" || true
+fi
+
+# Копирование шрифта unicode.pf2
+for font_path in /usr/share/grub/unicode.pf2 /boot/grub/unicode.pf2 "${CHROOT_DIR}/usr/share/grub/unicode.pf2"; do
+    if [ -f "$font_path" ]; then
+        cp "$font_path" "${ISO_DIR}/boot/grub/font.pf2" || true
+        break
+    fi
+done
+
 # 4. Создание встроенного скрипта GRUB с надежным поиском диска и аварийным меню
 echo "Генерация автономного EFI загрузчика GRUB с поиском диска..."
 cat <<'EOF' > /tmp/embedded_grub.cfg
+# Предварительная загрузка ключевых модулей из memdisk до изменения prefix
+insmod linux
+insmod normal
+insmod configfile
+insmod test
+insmod search
+insmod search_fs_file
+insmod search_label
+insmod iso9660
+insmod all_video
+insmod efi_gop
+insmod efi_uga
+
 # Поиск корневого раздела с ядром /casper/vmlinuz
 if [ -z "$root" -o ! -f "($root)/casper/vmlinuz" ]; then
     search --no-floppy --file --set=root /casper/vmlinuz
