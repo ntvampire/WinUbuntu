@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install WinUbuntu
+Comment=Автозапуск установщика при входе в Live-систему
+Exec=sh -c "sleep 2 && sudo -E calamares"
+Icon=system-software-install
+Terminal=false
+StartupNotify=true
+Categories=System;

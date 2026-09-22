@@ -125,6 +125,13 @@ done
 systemctl enable lightdm || true
 
 # Удаление следов Live-образа и инсталлятора из системы
+rm -f /etc/lightdm/lightdm.conf.d/20-autologin.conf || true
+rm -f /etc/skel/Desktop/install-winubuntu.desktop || true
+rm -f /etc/skel/.config/autostart/calamares.desktop || true
+for uh in /home/*; do
+    rm -f "$uh/Desktop/install-winubuntu.desktop" "$uh/.config/autostart/calamares.desktop" || true
+done
+
 apt-get purge -y --autoremove \
     casper \
     calamares \

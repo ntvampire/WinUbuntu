@@ -61,20 +61,27 @@ apt-get install -y --no-install-recommends \
     iproute2 \
     sudo
 
-echo "Установка графической подсистемы (минимальный X11 + Openbox)..."
+echo "Установка графической среды (XFCE + LightDM) и установщика Calamares..."
 apt-get install -y --no-install-recommends \
     xserver-xorg-core \
     xserver-xorg-video-all \
     xserver-xorg-input-all \
-    xinit \
     x11-xserver-utils \
-    openbox \
-    tint2 \
+    lightdm \
+    lightdm-gtk-greeter \
+    xfce4 \
+    xfce4-panel \
+    xfce4-session \
+    xfwm4 \
+    xfdesktop4 \
+    xfce4-terminal \
+    thunar \
+    xfce4-whiskermenu-plugin \
+    xfce4-pulseaudio-plugin \
+    greybird-gtk-theme \
+    papirus-icon-theme \
+    fonts-noto-core \
     adwaita-icon-theme \
-    fonts-noto-core
-
-echo "Установка установщика Calamares и утилит разметки дисков..."
-apt-get install -y --no-install-recommends \
     calamares \
     libqt5svg5 \
     parted \
@@ -86,50 +93,41 @@ apt-get install -y --no-install-recommends \
     grub-efi-amd64-bin \
     grub-efi-amd64-signed \
     shim-signed \
-    upower
+    upower \
+    policykit-1 \
+    libpolkit-agent-1-0
 
-# Создание Live-пользователя 'live'
-if ! id -u live >/dev/null 2>&1; then
-    useradd -m -s /bin/bash -G sudo,adm,video,audio,netdev live
-    passwd -d live
-fi
+# Настройка Casper для правильного распознавания пользователя
+cat <<'CASPER' > /etc/casper.conf
+export USERNAME="ubuntu"
+export USERFULLNAME="Live session user"
+export HOST="winubuntu"
+export BUILD_SYSTEM="Ubuntu"
+CASPER
 
-# Разрешение sudo без пароля для Live-пользователя
-echo "live ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-live-user
-chmod 0440 /etc/sudoers.d/99-live-user
+# Создание Live-пользователя 'ubuntu' (стандарт Casper) и 'live' (для совместимости)
+for u in ubuntu live; do
+    if ! id -u "$u" >/dev/null 2>&1; then
+        useradd -m -s /bin/bash -G sudo,adm,video,audio,netdev "$u"
+        passwd -d "$u"
+    fi
+    echo "$u ALL=(ALL) NOPASSWD: ALL" > "/etc/sudoers.d/99-$u"
+    chmod 0440 "/etc/sudoers.d/99-$u"
+    cp -r /etc/skel/. "/home/$u/" || true
+    chown -R "$u:$u" "/home/$u"
+done
 
-# Настройка автологина в консоль tty1
-mkdir -p /etc/systemd/system/getty@tty1.service.d
-cat <<'AUTOLOGIN' > /etc/systemd/system/getty@tty1.service.d/autologin.conf
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin live %I $TERM
-AUTOLOGIN
+# Настройка автоматического входа в графический сеанс LightDM
+mkdir -p /etc/lightdm/lightdm.conf.d
+cat <<'LIGHTDM' > /etc/lightdm/lightdm.conf.d/20-autologin.conf
+[Seat:*]
+autologin-guest=false
+autologin-user=ubuntu
+autologin-user-timeout=0
+user-session=xfce
+LIGHTDM
 
-# Настройка автозапуска графики при входе пользователя live
-cat <<'PROFILE' >> /home/live/.profile
-if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-    exec startx
-fi
-PROFILE
-chown live:live /home/live/.profile
-
-# Настройка сессии .xinitrc для пользователя live
-cat <<'XINIT' > /home/live/.xinitrc
-#!/bin/bash
-# Запуск оконного менеджера и окружения инсталлятора
-openbox &
-nm-applet &
-tint2 &
-
-# Установка русского языка клавиатуры (Alt+Shift)
-setxkbmap -layout "us,ru" -option "grp:alt_shift_toggle" &
-
-# Запуск инсталлятора
-sudo calamares -d
-XINIT
-chmod +x /home/live/.xinitrc
-chown live:live /home/live/.xinitrc
+systemctl enable lightdm || true
 
 # Очистка кэша пакетов
 apt-get clean
