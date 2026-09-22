@@ -76,9 +76,7 @@ apt-get install -y --no-install-recommends \
 echo "Установка установщика Calamares и утилит разметки дисков..."
 apt-get install -y --no-install-recommends \
     calamares \
-    calamares-settings-ubuntu \
     libqt5svg5 \
-    kpmcore \
     parted \
     dosfstools \
     e2fsprogs \

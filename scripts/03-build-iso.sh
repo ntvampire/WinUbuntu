@@ -4,8 +4,8 @@ set -euo pipefail
 WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHROOT_DIR="${WORKDIR}/work/chroot"
 ISO_DIR="${WORKDIR}/work/iso"
-OUTPUT_DIR="${WORKDIR}/output"
-ISO_NAME="winubuntu-24.04-minimal-amd64.iso"
+BUILD_DATE=$(date +'%Y%m%d')
+ISO_NAME="winubuntu-24.04-minimal-${BUILD_DATE}-amd64.iso"
 
 echo ">>> [Шаг 3] Подготовка структуры и сборка ISO-образа..."
 

@@ -3,13 +3,23 @@ name: Build WinUbuntu ISO
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       create_release:
         description: 'Создать GitHub Release с готовым ISO?'
         required: true
         type: boolean
-        default: true
+        default: false
+      custom_notes:
+        description: 'Краткое описание изменений для релиза (опционально)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
 
 jobs:
   build-iso:
@@ -20,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Free disk space on runner
         run: |
@@ -43,34 +55,88 @@ jobs:
             output/*.sha256
           retention-days: 14
 
-      - name: Create GitHub Release
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.create_release }}
+      - name: Prepare Release Metadata
+        id: meta
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+        run: |
+          ISO_PATH=$(ls output/*.iso | head -n 1)
+          ISO_FILE=$(basename "$ISO_PATH")
+          SHA_VAL=$(cat output/*.sha256 | awk '{print $1}')
+          SIZE_VAL=$(du -h "$ISO_PATH" | awk '{print $1}')
+          DATE_VAL=$(date +'%Y-%m-%d')
+          
+          # Определение тега и названия
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            RELEASE_TAG="${{ github.ref_name }}"
+          else
+            RELEASE_TAG="v24.04-${DATE_VAL}"
+          fi
+          
+          # Определение текста описания изменений
+          if [ -n "${{ inputs.custom_notes }}" ]; then
+            NOTES="${{ inputs.custom_notes }}"
+          else
+            NOTES=$(git log -1 --pretty=%B | head -n 5)
+          fi
+          
+          echo "iso_name=${ISO_FILE}" >> $GITHUB_OUTPUT
+          echo "iso_size=${SIZE_VAL}" >> $GITHUB_OUTPUT
+          echo "sha256=${SHA_VAL}" >> $GITHUB_OUTPUT
+          echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          
+          # Запись тела релиза во временный файл
+          cat <<EOF > release_body.md
+          ## 💿 WinUbuntu 24.04 LTS (Minimal Netinstall)
+
+          Минимальный, легковесный и интуитивно понятный образ на базе **Ubuntu 24.04 LTS (Noble Numbat)** в привычном стиле **Windows 10/11**, созданный специально для слабых ПК и ноутбуков (уровень Celeron J1800 / 4GB RAM).
+
+          ---
+
+          ### 📌 Что изменилось в этой версии
+          ${NOTES}
+
+          ---
+
+          ### 💾 Файлы релиза
+          - **Образ**: \`${ISO_FILE}\` (~${SIZE_VAL})
+          - **Контрольная сумма SHA256**:
+          \`\`\`
+          ${SHA_VAL}
+          \`\`\`
+
+          ---
+
+          ### 🖥️ Состав сборки:
+          - **Рабочий стол**: XFCE 4.18 (интерфейс Windows 10/11: нижняя панель, меню «Пуск» с поиском, быстрый трей, кнопка «Свернуть все окна»).
+          - **Веб-браузер**: **Яндекс.Браузер** (официальный репозиторий Яндекса с автообновлением).
+          - **Магазин приложений**: **GNOME Software** (каталог программ для установки в один клик).
+          - **Медиаплееры**: **Celluloid** (видео с аппаратным ускорением Intel VA-API) + **Audacious** (аудио).
+          - **Утилиты**: **Eye of GNOME** (просмотр фото), **File-Roller** (архиватор zip, rar, 7z), **Atril** (документы и PDF).
+
+          ### ⚡ Оптимизации для слабого железа и HDD:
+          - **\`zram-tools\`**: сжатый swap в RAM (zstd 50% ОЗУ) — спасает от зависаний при нехватке памяти.
+          - **\`preload\` + \`noatime\`**: ускорение загрузки приложений с обычных механических дисков (HDD) и снижение лишней записи.
+          - **Драйверы Intel VA-API**: аппаратное декодирование видео силами встроенной графики Intel HD.
+
+          ---
+
+          ### 🚀 Как записать и установить:
+          1. Скопируйте файл \`.iso\` на флешку с **Ventoy** или запишите через **Rufus** (режим UEFI или BIOS).
+          2. Загрузитесь с флешки — откроется графический установщик **Calamares**.
+          3. Подключитесь к сети (Wi-Fi или кабель) и следуйте шагам мастера на экране.
+          EOF
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v24.04-${{ github.run_number }}
-          name: WinUbuntu 24.04 LTS Minimal (${{ github.run_number }})
+          tag_name: ${{ steps.meta.outputs.release_tag }}
+          name: WinUbuntu 24.04 (${{ steps.meta.outputs.release_tag }})
           draft: false
           prerelease: false
+          body_path: release_body.md
           files: |
             output/*.iso
             output/*.sha256
-          body: |
-            ## WinUbuntu 24.04 LTS (Minimal Netinstall)
-            
-            Минимальный легковесный ISO-образ Ubuntu 24.04 LTS в стиле Windows 10/11 для слабых ПК и ноутбуков (Celeron J1800 / 4GB RAM).
-            
-            ### Особенности:
-            - **База**: Ubuntu 24.04 LTS Noble Numbat
-            - **Рабочий стол**: Кастомизированный XFCE 4.18 (интерфейс Windows 10/11)
-            - **Установщик**: Calamares с поддержкой авторазметки и сетевой установки
-            - **Приложения по умолчанию**:
-              - Яндекс.Браузер (официальный репозиторий)
-              - Celluloid (видеоплеер с аппаратным ускорением Intel VA-API)
-              - Audacious (аудиоплеер)
-              - Eye of GNOME (просмотр фото)
-              - File-Roller (архиватор zip, rar, 7z)
-              - Atril (просмотрщик PDF)
-            - **Оптимизация**: zram-swap zstd (предотвращает зависания при нехватке ОЗУ)
-            - **Совместимость**: Ventoy, UEFI (x86_64), Legacy BIOS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
