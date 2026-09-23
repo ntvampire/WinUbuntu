@@ -55,7 +55,6 @@ apt-get install -y \
     linux-image-generic
 
 apt-get install -y --no-install-recommends \
-    hyperv-daemons \
     netplan.io \
     systemd-resolved \
     initramfs-tools \
