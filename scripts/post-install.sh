@@ -126,10 +126,11 @@ systemctl enable lightdm || true
 
 # Удаление следов Live-образа и инсталлятора из системы
 rm -f /etc/lightdm/lightdm.conf.d/20-autologin.conf || true
-rm -f /etc/skel/Desktop/install-winubuntu.desktop || true
-rm -f /etc/skel/.config/autostart/calamares.desktop || true
+rm -f /usr/share/xsessions/installer.desktop /usr/local/bin/start-installer || true
+chmod +x /etc/skel/Desktop/*.desktop 2>/dev/null || true
 for uh in /home/*; do
     rm -f "$uh/Desktop/install-winubuntu.desktop" "$uh/.config/autostart/calamares.desktop" || true
+    chmod +x "$uh/Desktop/"*.desktop 2>/dev/null || true
 done
 
 apt-get purge -y --autoremove \

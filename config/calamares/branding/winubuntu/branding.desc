@@ -20,8 +20,8 @@ strings:
     releaseNotesUrl:     "https://github.com/ntvampire/WinUbuntu"
 
 images:
-    productLogo:         "squid"
-    productIcon:         "squid"
+    productLogo:         "logo.svg"
+    productIcon:         "logo.svg"
 
 slideshow: []
 
