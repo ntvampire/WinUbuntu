@@ -121,8 +121,10 @@ for user_home in /home/*; do
     fi
 done
 
-# Включение LightDM в качестве дисплейного менеджера
+# Включение LightDM в качестве дисплейного менеджера и сетевых служб
 systemctl enable lightdm || true
+systemctl enable NetworkManager || true
+systemctl enable systemd-resolved || true
 
 # Удаление следов Live-образа и инсталлятора из системы
 rm -f /etc/lightdm/lightdm.conf.d/20-autologin.conf || true

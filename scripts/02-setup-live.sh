@@ -48,8 +48,16 @@ echo "Обновление списков пакетов..."
 apt-get update
 
 echo "Установка ядра, casper и сетевых утилит..."
-apt-get install -y --no-install-recommends \
+# Установка ядра с рекомендуемыми модулями (linux-modules-extra),
+# чтобы включить сетевые драйверы Hyper-V (hv_netvsc), Realtek, Intel, Wi-Fi и виртуализации
+apt-get install -y \
     linux-generic \
+    linux-image-generic
+
+apt-get install -y --no-install-recommends \
+    hyperv-daemons \
+    netplan.io \
+    systemd-resolved \
     initramfs-tools \
     casper \
     systemd-sysv \
@@ -61,6 +69,35 @@ apt-get install -y --no-install-recommends \
     wpasupplicant \
     iproute2 \
     sudo
+
+# Настройка глобального управления всеми сетевыми интерфейсами через NetworkManager
+mkdir -p /etc/netplan
+cat <<'NETPLAN' > /etc/netplan/01-network-manager-all.yaml
+network:
+  version: 2
+  renderer: NetworkManager
+NETPLAN
+chmod 600 /etc/netplan/01-network-manager-all.yaml
+
+mkdir -p /etc/NetworkManager/conf.d
+cat <<'NMCONF' > /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
+[keyfile]
+unmanaged-devices=none
+NMCONF
+
+cat <<'NMMAIN' > /etc/NetworkManager/NetworkManager.conf
+[main]
+plugins=ifupdown,keyfile
+
+[ifupdown]
+managed=true
+
+[device]
+wifi.scan-rand-mac-address=no
+NMMAIN
+
+systemctl enable NetworkManager || true
+systemctl enable systemd-resolved || true
 
 echo "Установка графической среды (XFCE, Openbox, LightDM) и Calamares..."
 apt-get install -y --no-install-recommends \
